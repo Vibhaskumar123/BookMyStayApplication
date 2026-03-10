@@ -1,7 +1,7 @@
 import java.util.*;
-public class UC3_BookMyStayApplication{
+public class BookMyStayApplication {
     // -------------------------
-    // UC2: Room Model
+    // Room Model
     // -------------------------
     static abstract class Room {
         protected int beds;
@@ -11,11 +11,6 @@ public class UC3_BookMyStayApplication{
             this.beds = beds;
             this.size = size;
             this.price = price;
-        }
-        public void displayDetails() {
-            System.out.println("Beds: " + beds);
-            System.out.println("Size: " + size + " sqm");
-            System.out.println("Price: $" + price + " per night");
         }
         public abstract String getRoomType();
     }
@@ -59,20 +54,16 @@ public class UC3_BookMyStayApplication{
         }
     }
     public static void main(String[] args) {
-        // UC1
-        System.out.println("Welcome to the Hotel Booking System");
-        System.out.println("Application: Hotel Booking System\n");
-        // UC2 Rooms
         Room single = new SingleRoom();
         Room doubleRoom = new DoubleRoom();
         Room suite = new SuiteRoom();
         Room[] rooms = {single, doubleRoom, suite};
-
-        // UC3 Inventory
         RoomInventory inventory = new RoomInventory();
         inventory.displayInventory();
-
-        // show inventory after allocation
-        inventory.displayInventory();
+        System.out.println("\nChecking Availability:");
+        for (Room room : rooms) {
+            System.out.println(room.getRoomType() + " Available: " +
+                    inventory.getAvailability(room.getRoomType()));
+        }
     }
 }
