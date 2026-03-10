@@ -1,8 +1,6 @@
 import java.util.*;
-public class UC4_BookMyStayApplication{
-    // -------------------------
-    // UC2: Room Model
-    // -------------------------
+public class BookMyStayApplication {
+    // Room Model
     static abstract class Room {
         protected int beds;
         protected double size;
@@ -31,11 +29,10 @@ public class UC4_BookMyStayApplication{
         public SuiteRoom() { super(3, 50, 350); }
         public String getRoomType() { return "Suite Room"; }
     }
-    // -------------------------
-    // UC3: Inventory
-    // -------------------------
+    // Room Inventory
     static class RoomInventory {
         private HashMap<String, Integer> inventory;
+
         public RoomInventory() {
             inventory = new HashMap<>();
             inventory.put("Single Room", 5);
@@ -45,12 +42,6 @@ public class UC4_BookMyStayApplication{
         public int getAvailability(String roomType) {
             return inventory.getOrDefault(roomType, 0);
         }
-        public void decreaseAvailability(String roomType) {
-            int count = inventory.getOrDefault(roomType, 0);
-            if (count > 0) {
-                inventory.put(roomType, count - 1);
-            }
-        }
         public void displayInventory() {
             System.out.println("\nCurrent Inventory:");
             for (Map.Entry<String, Integer> entry : inventory.entrySet()) {
@@ -58,14 +49,15 @@ public class UC4_BookMyStayApplication{
             }
         }
     }
-    // -------------------------
     // UC4: Search Service
-    // -------------------------
     static class SearchService {
         public void searchAvailableRooms(RoomInventory inventory, Room[] rooms) {
+
             System.out.println("\nAvailable Rooms:\n");
+
             for (Room room : rooms) {
                 int available = inventory.getAvailability(room.getRoomType());
+
                 if (available > 0) {
                     System.out.println(room.getRoomType());
                     room.displayDetails();
@@ -76,24 +68,12 @@ public class UC4_BookMyStayApplication{
         }
     }
     public static void main(String[] args) {
-        // UC1
-        System.out.println("Welcome to the Hotel Booking System");
-        System.out.println("Application: Hotel Booking System\n");
-        // UC2 Rooms
         Room single = new SingleRoom();
         Room doubleRoom = new DoubleRoom();
         Room suite = new SuiteRoom();
         Room[] rooms = {single, doubleRoom, suite};
-
-        // UC3 Inventory
         RoomInventory inventory = new RoomInventory();
-        inventory.displayInventory();
-
-        // UC4 Search
         SearchService searchService = new SearchService();
         searchService.searchAvailableRooms(inventory, rooms);
-
-        // show inventory after allocation
-        inventory.displayInventory();
     }
 }
