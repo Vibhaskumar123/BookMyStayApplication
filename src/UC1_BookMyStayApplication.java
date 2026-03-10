@@ -1,5 +1,5 @@
 import java.util.*;
-public class UC1_BookMyStayApplication{
+public class BookMyStayApplication{
     public static void main(String[] args) {
         // UC1
         System.out.println("Welcome to the Hotel Booking System");
