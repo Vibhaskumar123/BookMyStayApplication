@@ -1,69 +1,71 @@
+import java.io.*;
 import java.util.*;
+// UC12: Classes must implement Serializable to be saved to a file
+static class HotelState implements Serializable {
+    private static final long serialVersionUID = 1L;
+    public Map<String, Integer> inventory;
+    public List<String> bookingHistory;
+    public HotelState(Map<String, Integer> inventory, List<String> bookingHistory) {
+        this.inventory = inventory;
+        this.bookingHistory = bookingHistory;
+    }
+}
 public class BookMyStayApplication{
+    private static final String STORAGE_FILE = "hotel_state.ser";
     // -------------------------
-    // UC11: Thread-Safe Inventory
+    // UC12: Persistence Service
     // -------------------------
-    static class ThreadSafeInventory {
-        private final Map<String, Integer> inventory = new HashMap<>();
-        public ThreadSafeInventory() {
-            inventory.put("Luxury Suite", 1); // Only ONE room available for simulation
-        }
-        // The 'synchronized' keyword prevents race conditions
-        public synchronized boolean bookRoom(String roomType, String guestName) {
-            int available = inventory.getOrDefault(roomType, 0);
-            if (available > 0) {
-                System.out.println("[PROCESSING] " + guestName + " is attempting to book " + roomType);
-                // Simulate a slight delay in processing to highlight concurrency issues
-                try { Thread.sleep(100); } catch (InterruptedException e) {}
-                inventory.put(roomType, available - 1);
-                System.out.println("[SUCCESS] Room confirmed for " + guestName);
-                return true;
-            } else {
-                System.out.println("[FAILED] " + guestName + " found no availability for " + roomType);
-                return false;
+    static class PersistenceService {
+        public void saveState(Map<String, Integer> inventory, List<String> history) {
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(STORAGE_FILE))) {
+                HotelState state = new HotelState(inventory, history);
+                oos.writeObject(state);
+                System.out.println("[SAVE] System state persisted to " + STORAGE_FILE);
+            } catch (IOException e) {
+                System.err.println("[ERROR] Failed to save state: " + e.getMessage());
             }
         }
-        public void displayFinalStatus() {
-            System.out.println("\nFinal Inventory State: " + inventory);
-        }
-    }
-    // -------------------------
-    // UC11: Booking Task (Runnable)
-    // -------------------------
-    static class BookingTask implements Runnable {
-        private ThreadSafeInventory inventory;
-        private String guestName;
-        private String roomType;
-        public BookingTask(ThreadSafeInventory inventory, String guestName, String roomType) {
-            this.inventory = inventory;
-            this.guestName = guestName;
-            this.roomType = roomType;
-        }
-        @Override
-        public void run() {
-            inventory.bookRoom(roomType, guestName);
+        public HotelState loadState() {
+            File file = new File(STORAGE_FILE);
+            if (!file.exists()) {
+                System.out.println("[RECOVERY] No saved state found. Starting fresh.");
+                return null;
+            }
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(STORAGE_FILE))) {
+                System.out.println("[RECOVERY] Restoring system state from " + STORAGE_FILE + "...");
+                return (HotelState) ois.readObject();
+            } catch (IOException | ClassNotFoundException e) {
+                System.err.println("[ERROR] Recovery failed. Data may be corrupted.");
+                return null;
+            }
         }
     }
     public static void main(String[] args) {
-        System.out.println("=== Use Case 11: Concurrent Booking Simulation ===\n");
-        System.out.println("Scenario: 3 Guests competing for 1 Luxury Suite simultaneously.\n");
-        ThreadSafeInventory inventory = new ThreadSafeInventory();
-        // Create multiple threads representing concurrent users
-        Thread t1 = new Thread(new BookingTask(inventory, "Alice", "Luxury Suite"));
-        Thread t2 = new Thread(new BookingTask(inventory, "Bob", "Luxury Suite"));
-        Thread t3 = new Thread(new BookingTask(inventory, "Charlie", "Luxury Suite"));
-        // Start all threads at nearly the same time
-        t1.start();
-        t2.start();
-        t3.start();
-        // Wait for all threads to finish
-        try {
-            t1.join();
-            t2.join();
-            t3.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        System.out.println("=== Use Case 12: Data Persistence & System Recovery ===\n");
+        PersistenceService persistence = new PersistenceService();
+        // Step 1: Attempt Recovery
+        HotelState recoveredState = persistence.loadState();
+        Map<String, Integer> currentInventory;
+        List<String> currentHistory;
+        if (recoveredState != null) {
+            currentInventory = recoveredState.inventory;
+            currentHistory = recoveredState.bookingHistory;
+            System.out.println("Restored Inventory: " + currentInventory);
+            System.out.println("Restored History Count: " + currentHistory.size());
+        } else {
+            // Default initialization if no file exists
+            currentInventory = new HashMap<>();
+            currentInventory.put("Deluxe Room", 10);
+            currentHistory = new ArrayList<>();
         }
-        inventory.displayFinalStatus();
+        // Step 2: Simulate System Activity
+        System.out.println("\n[ACTIVITY] Processing new booking for 'John Doe'...");
+        currentInventory.put("Deluxe Room", currentInventory.get("Deluxe Room") - 1);
+        currentHistory.add("John Doe booked Deluxe Room on " + new Date());
+        // Step 3: Persist State before Shutdown
+        persistence.saveState(currentInventory, currentHistory);
+        System.out.println("\nFinal State before exit:");
+        System.out.println("Inventory: " + currentInventory);
+        System.out.println("System Shutting Down...");
     }
 }
