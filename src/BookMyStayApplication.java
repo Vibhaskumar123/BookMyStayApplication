@@ -1,103 +1,92 @@
 import java.util.*;
-public class BookMyStayApplication{
+// UC9: Custom Exception to represent domain-specific booking errors
+class BookingException extends Exception {
+    public BookingException(String message) {
+        super(message);
+    }
+}
+public class UseCase9ErrorHandlingValidation {
     // -------------------------
-    // Reservation Model
+    // UC3 & UC9: Room Inventory with State Protection
     // -------------------------
-    static class Reservation {
-        private static int counter = 1;
-        private String reservationId;
-        private String guestName;
-        private String roomType;
-        public Reservation(String guestName, String roomType) {
-            this.guestName = guestName;
-            this.roomType = roomType;
-            this.reservationId = "RES-" + counter++;
+    static class RoomInventory {
+        private HashMap<String, Integer> inventory;
+        public RoomInventory() {
+            inventory = new HashMap<>();
+            inventory.put("Single Room", 1); // Limited stock to test failures
+            inventory.put("Double Room", 1);
         }
-        public String getReservationId() {
-            return reservationId;
+        public boolean exists(String roomType) {
+            return inventory.containsKey(roomType);
         }
-        public String getGuestName() {
-            return guestName;
+        public int getAvailability(String roomType) {
+            return inventory.getOrDefault(roomType, 0);
         }
-        public String getRoomType() {
-            return roomType;
-        }
-        public void display() {
-            System.out.println(reservationId + " | " + guestName + " | " + roomType);
+        // UC9: Method ensures inventory never goes negative
+        public void decreaseAvailability(String roomType) throws BookingException {
+            int count = inventory.getOrDefault(roomType, 0);
+            if (count <= 0) {
+                throw new BookingException("Inconsistency Error: No inventory left for " + roomType);
+            }
+            inventory.put(roomType, count - 1);
         }
     }
     // -------------------------
-    // Booking History (Storage)
+    // UC9: Validator (Fail-Fast Logic)
     // -------------------------
-    static class BookingHistory {
-        private List<Reservation> history;
-        public BookingHistory() {
-            history = new ArrayList<>();
-        }
-        // Add confirmed reservation
-        public void addReservation(Reservation reservation) {
-            history.add(reservation);
-            System.out.println("Added to history: " + reservation.getReservationId());
-        }
-        // Get all reservations
-        public List<Reservation> getAllReservations() {
-            return history;
-        }
-        // Display all reservations
-        public void displayHistory() {
-            System.out.println("\n=== Booking History ===");
-            for (Reservation r : history) {
-                r.display();
+    static class BookingValidator {
+        public static void validateRequest(String guestName, String roomType, RoomInventory inventory) 
+                throws BookingException {
+            // Validate Guest Input
+            if (guestName == null || guestName.trim().isEmpty()) {
+                throw new BookingException("Validation Failed: Guest name cannot be empty.");
+            }
+            // Validate System Constraints
+            if (!inventory.exists(roomType)) {
+                throw new BookingException("Validation Failed: Room type '" + roomType + "' does not exist.");
+            }
+            if (inventory.getAvailability(roomType) <= 0) {
+                throw new BookingException("Validation Failed: " + roomType + " is currently sold out.");
             }
         }
     }
     // -------------------------
-    // Booking Report Service
+    // UC6 & UC9: Booking Service with Error Handling
     // -------------------------
-    static class BookingReportService {
-        // Generate summary report
-        public void generateSummaryReport(List<Reservation> reservations) {
-            System.out.println("\n=== Booking Summary Report ===");
-            if (reservations.isEmpty()) {
-                System.out.println("No bookings available.");
-                return;
+    static class BookingService {
+        private Set<String> usedRoomIds = new HashSet<>();
+        public void processSingleBooking(String guestName, String roomType, RoomInventory inventory) {
+            System.out.println(">>> Request: " + guestName + " for " + roomType);
+            try {
+                // Step 1: Validate Input (Fail-Fast)
+                BookingValidator.validateRequest(guestName, roomType, inventory);
+                // Step 2: Update State (Protected)
+                inventory.decreaseAvailability(roomType);
+                // Step 3: Business Logic
+                String roomId = roomType.substring(0, 3).toUpperCase() + "-" + (usedRoomIds.size() + 101);
+                usedRoomIds.add(roomId);
+                System.out.println("CONFIRMED: Booking successful for " + guestName + ". Room: " + roomId);
+            } catch (BookingException e) {
+                // UC9: Catching specific domain errors and displaying failure messages
+                System.err.println("REJECTED: " + e.getMessage());
+            } finally {
+                // Ensures the process is always concluded
+                System.out.println("--- Session Finished ---\n");
             }
-            // Count bookings per room type
-            Map<String, Integer> roomCount = new HashMap<>();
-            for (Reservation r : reservations) {
-                roomCount.put(
-                        r.getRoomType(),
-                        roomCount.getOrDefault(r.getRoomType(), 0) + 1
-                );
-            }
-            // Display report
-            for (Map.Entry<String, Integer> entry : roomCount.entrySet()) {
-                System.out.println(entry.getKey() + " → " + entry.getValue() + " bookings");
-            }
-            System.out.println("Total Bookings: " + reservations.size());
         }
     }
-    // -------------------------
-    // Main Method
-    // -------------------------
     public static void main(String[] args) {
-        System.out.println("=== Use Case 8: Booking History & Reporting ===\n");
-        // Simulate confirmed bookings
-        Reservation r1 = new Reservation("Alice", "Single Room");
-        Reservation r2 = new Reservation("Bob", "Suite Room");
-        Reservation r3 = new Reservation("Charlie", "Double Room");
-        Reservation r4 = new Reservation("David", "Single Room");
-        // Booking history
-        BookingHistory history = new BookingHistory();
-        // Add confirmed bookings
-        history.addReservation(r1);
-        history.addReservation(r2);
-        history.addReservation(r3);
-        history.addReservation(r4);
-        // Admin views history
-        history.displayHistory();
-        // Generate report
-        BookingReportService reportService = new BookingReportService();
-        reportService.generateSummaryReport(history.getAllReservations());
+        System.out.println("=== UC9: Error Handling & Validation Test ===\n");
+        RoomInventory inventory = new RoomInventory();
+        BookingService service = new BookingService();
+        // 1. Success Scenario
+        service.processSingleBooking("Alice", "Single Room", inventory);
+        // 2. Failure: Invalid Room Type
+        service.processSingleBooking("Bob", "Luxury Villa", inventory);
+        // 3. Failure: Empty Input
+        service.processSingleBooking("", "Double Room", inventory);
+        // 4. Failure: Sold Out (Double Room available: 1. Charlie takes it, David fails)
+        service.processSingleBooking("Charlie", "Double Room", inventory);
+        service.processSingleBooking("David", "Double Room", inventory); 
     }
 }
